@@ -13,7 +13,9 @@ export interface ErrorsFormatterSourcesConfig {
 }
 
 export interface ErrorsFormatterSourcesFormattersConfig {
-    match: string;
+    messageKey?: string;
+    codeKey?: string;
+    match?: string;
     message?: string;
     code?: string;
     context?: Record<string, any>;

@@ -1,3 +1,5 @@
+import { GraphQLError } from 'graphql';
+
 export const convertType = (value?: any): any => {
     if (typeof value === 'string') {
         if (value === '') {
@@ -14,4 +16,18 @@ export const convertType = (value?: any): any => {
     }
 
     return value;
+};
+
+export const modifyError = (
+    original: GraphQLError,
+    message: string,
+    extensions?: any,
+): GraphQLError => {
+    return new GraphQLError(message, {
+        nodes: original.nodes,
+        source: original.source,
+        positions: original.positions,
+        path: original.path,
+        extensions: extensions || {},
+    });
 };

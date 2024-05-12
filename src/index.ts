@@ -1,9 +1,11 @@
+// eslint-disable-next-line import/namespace,import/no-extraneous-dependencies
+import { constantCase } from 'change-case';
 import { GraphQLError } from 'graphql';
 import { useApolloServerErrors } from '@envelop/apollo-server-errors';
 import { stringInterpolator } from '@graphql-mesh/string-interpolation';
 import { type MeshPlugin, type MeshPluginOptions } from '@graphql-mesh/types';
 import { type ErrorsFormatterConfig } from './types';
-import { convertType } from './utils';
+import { convertType, modifyError } from './utils';
 
 export default function useErrorsFormatter(
     options: MeshPluginOptions<ErrorsFormatterConfig>,
@@ -21,6 +23,34 @@ export default function useErrorsFormatter(
         onPluginInit({ addPlugin }) {
             addPlugin(useApolloServerErrors());
         },
+        onFetch() {
+            return async ({ response }) => {
+                if (response.status >= 400) {
+                    const body = await response.text();
+                    let message = response.statusText;
+                    let context: Record<string, any>;
+
+                    try {
+                        context = JSON.parse(body);
+                    } catch {
+                        if (body && body.length > 0) {
+                            message = body;
+                        }
+
+                        context = {
+                            message,
+                        };
+                    }
+
+                    throw new GraphQLError(message, {
+                        extensions: {
+                            code: constantCase(response.statusText),
+                            context,
+                        },
+                    });
+                }
+            };
+        },
         onDelegate(payload) {
             const source = options.sources.find(
                 source =>
@@ -34,24 +64,42 @@ export default function useErrorsFormatter(
                     return;
                 }
 
-                let newError = Object.assign({}, result);
+                let newError = result;
 
                 const match = newError.message.match(/^(\d+)\s([A-Z_]+):\s(.*)$/);
                 if (match) {
-                    newError = new GraphQLError(match[3], {
-                        nodes: newError.nodes,
-                        source: newError.source,
-                        positions: newError.positions,
-                        path: newError.path,
-                        extensions: {
-                            ...newError.extensions,
-                            code: match[2],
-                        },
+                    newError = modifyError(newError, match[3], {
+                        ...newError?.extensions,
+                        code: match[2],
                     });
                 }
 
                 if (source?.formatters) {
                     for (const formatter of source.formatters) {
+                        if (newError?.extensions?.context) {
+                            const originalContext: any = newError.extensions.context;
+                            if (
+                                formatter.messageKey &&
+                                Object.keys(originalContext).includes(formatter.messageKey)
+                            ) {
+                                newError = modifyError(
+                                    newError,
+                                    originalContext[formatter.messageKey],
+                                    newError.extensions,
+                                );
+                            }
+
+                            if (
+                                formatter.codeKey &&
+                                Object.keys(originalContext).includes(formatter.codeKey)
+                            ) {
+                                newError = modifyError(newError, newError.message, {
+                                    ...newError?.extensions,
+                                    code: originalContext[formatter.codeKey],
+                                });
+                            }
+                        }
+
                         const match = newError.message.match(new RegExp(formatter.match));
                         if (!match) {
                             continue;
@@ -68,7 +116,7 @@ export default function useErrorsFormatter(
                             newMessage = replacer(formatter.message);
                         }
 
-                        const extensions = newError.extensions;
+                        const extensions: Record<string, any> = newError.extensions;
                         if (formatter.code) {
                             extensions.code = formatter.code;
                         }
@@ -82,17 +130,30 @@ export default function useErrorsFormatter(
                                 }
                             }
 
-                            extensions.context = context;
+                            extensions.context = {
+                                ...extensions?.context,
+                                context,
+                            };
                         }
 
-                        newError = new GraphQLError(newMessage, {
-                            nodes: newError.nodes,
-                            source: newError.source,
-                            positions: newError.positions,
-                            path: newError.path,
-                            extensions,
-                        });
+                        newError = modifyError(newError, newMessage, extensions);
                     }
+                }
+
+                if (newError.extensions) {
+                    newError = modifyError(
+                        newError,
+                        newError.message,
+                        Object.keys(newError.extensions).reduce(
+                            (newObj: Record<string, any>, key) => {
+                                if (['code', 'context'].includes(key)) {
+                                    newObj[key] = newError.extensions[key];
+                                }
+                                return newObj;
+                            },
+                            {},
+                        ),
+                    );
                 }
 
                 setResult(newError);
