@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/namespace,import/no-extraneous-dependencies
 import { constantCase } from 'change-case';
 import { GraphQLError } from 'graphql';
 import { useApolloServerErrors } from '@envelop/apollo-server-errors';

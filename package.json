@@ -1,6 +1,6 @@
 {
   "name": "@dmamontov/graphql-mesh-errors-formatter-plugin",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Dmitry Mamontov",
   "type": "module",
   "repository": {
@@ -43,7 +43,7 @@
     "@envelop/core": "^5.0.0",
     "@graphql-mesh/string-interpolation": "^0.5.3",
     "@graphql-mesh/types": "^0.97.5",
-    "change-case": "^5.4.4",
+    "change-case": "^4.1.2",
     "graphql": "*"
   },
   "devDependencies": {
