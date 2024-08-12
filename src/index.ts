@@ -65,11 +65,12 @@ export default function useErrorsFormatter(
 
                 let newError = result;
 
-                const match = newError.message.match(/^(\d+)\s([A-Z_]+):\s(.*)$/);
+                const match = newError.message.match(/^(\d+)\s([A-Z_]+)(\(([A-Z_]+)\))?:\s(.*)$/);
                 if (match) {
-                    newError = modifyError(newError, match[3], {
+                    newError = modifyError(newError, match[5], {
                         ...newError?.extensions,
                         code: match[2],
+                        reason: match[4],
                     });
                 }
 
@@ -145,7 +146,7 @@ export default function useErrorsFormatter(
                         newError.message,
                         Object.keys(newError.extensions).reduce(
                             (newObj: Record<string, any>, key) => {
-                                if (['code', 'context'].includes(key)) {
+                                if (['code', 'reason', 'context'].includes(key)) {
                                     newObj[key] = newError.extensions[key];
                                 }
                                 return newObj;
