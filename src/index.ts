@@ -70,7 +70,9 @@ export default function useErrorsFormatter(
                     newError = modifyError(newError, match[5], {
                         ...newError?.extensions,
                         code: match[2],
-                        reason: match[4],
+                        context: {
+                            reason: match[4],
+                        },
                     });
                 }
 
@@ -146,7 +148,7 @@ export default function useErrorsFormatter(
                         newError.message,
                         Object.keys(newError.extensions).reduce(
                             (newObj: Record<string, any>, key) => {
-                                if (['code', 'reason', 'context'].includes(key)) {
+                                if (['code', 'context'].includes(key)) {
                                     newObj[key] = newError.extensions[key];
                                 }
                                 return newObj;
